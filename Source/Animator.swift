@@ -37,6 +37,17 @@ class Animator {
     return imageSource.isAnimatedGIF
   }
 
+  /// The index of the currently displayed GIF frame.
+  var currentAnimationPosition: Int {
+    guard animatedFrames.count != frameCount else {
+        return currentFrameIndex
+    }
+
+    // Compute the animation position using currentPreloadIndex and current cache count properties.
+    let animationPosition = currentPreloadIndex - animatedFrames.count
+    return (animationPosition < 0) ? (animationPosition + frameCount) : animationPosition
+  }
+
   /// Initializes an animator instance from raw GIF image data and an `Animatable` delegate.
   ///
   /// - parameter data: The raw GIF image data.
