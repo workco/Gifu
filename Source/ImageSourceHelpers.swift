@@ -41,9 +41,11 @@ func durationFromGIFProperties(properties: GIFProperties) -> Double? {
 /// Calculates frame duration based on both clamped and unclamped times.
 ///
 /// - returns: A frame duration.
-func duration(unclampedDelayTime: Double)(delayTime: Double) -> Double {
-  let delayArray = [unclampedDelayTime, delayTime]
-  return delayArray.filter(isPositive).first ?? defaultDuration
+func duration(unclampedDelayTime: Double) -> Double -> Double {
+  return {(delayTime: Double) -> Double in
+    let delayArray = [unclampedDelayTime, delayTime]
+      return delayArray.filter(isPositive).first ?? defaultDuration
+  }
 }
 
 /// Checks if a `Double` value is positive.
