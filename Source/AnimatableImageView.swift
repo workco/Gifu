@@ -13,14 +13,36 @@ public extension AnimatableImageViewDelegate {
 
 /// A subclass of `UIImageView` that can be animated using an image name string or raw data.
 public class AnimatableImageView: UIImageView {
+  /// Proxy object for preventing a reference cycle between the CADisplayLink and AnimatableImageView.
+  /// Source: http://merowing.info/2015/11/the-beauty-of-imperfection/
+  class TargetProxy {
+    private weak var target: AnimatableImageView?
+
+    init(target: AnimatableImageView) {
+      self.target = target
+    }
+
+    @objc func onScreenUpdate() {
+      target?.updateFrameIfNeeded()
+    }
+  }
+
   /// animatable image view delegate instance
   public weak var delegate: AnimatableImageViewDelegate?
 
   /// An `Animator` instance that holds the frames of a specific image in memory.
   var animator: Animator?
 
+  /// A flag to avoid invalidating the displayLink on deinit if it was never created
+  private var displayLinkInitialized: Bool = false
+
   /// A display link that keeps calling the `updateFrame` method on every screen refresh.
-  lazy var displayLink: CADisplayLink = CADisplayLink(target: self, selector: #selector(updateFrame))
+  lazy var displayLink: CADisplayLink = {
+    self.displayLinkInitialized = true
+    let display = CADisplayLink(target: TargetProxy(target: self), selector: #selector(TargetProxy.onScreenUpdate))
+    display.paused = true
+    return display
+  }()
 
   /// Current loaded data
   public private(set) var loadedData: NSData?
@@ -54,7 +76,8 @@ public class AnimatableImageView: UIImageView {
   public func prepareForAnimation(imageNamed imageName: String) {
     currentLoopCount = 0
     let imagePath = NSBundle.mainBundle().bundleURL.URLByAppendingPathComponent(imageName)
-    prepareForAnimation <^> NSData(contentsOfURL: imagePath)
+    guard let data = NSData(contentsOfURL: imagePath) else { return }
+    prepareForAnimation(imageData: data)
   }
 
   /// Prepares the frames using raw GIF image data, without starting the animation.
@@ -87,7 +110,7 @@ public class AnimatableImageView: UIImageView {
 
   /// Updates the `image` property of the image view if necessary. This method should not be called manually.
   override public func displayLayer(layer: CALayer) {
-    image = animator?.currentFrame
+    image = animator?.currentFrameImage ?? image
     stopAnimatingIfNeeded()
   }
 
@@ -103,7 +126,7 @@ public class AnimatableImageView: UIImageView {
     displayLink.paused = true
   }
 
-  /// Reset the image view values
+  /// Reset the image view values.
   public func prepareForReuse() {
     stopAnimatingGIF()
     animator = nil
@@ -136,16 +159,19 @@ public class AnimatableImageView: UIImageView {
     return maxLoopCount > 0 && maxLoopCount == currentLoopCount
   }
 
-  /// Update the current frame with the displayLink duration
-  func updateFrame() {
-    if animator?.updateCurrentFrame(displayLink.duration) ?? false {
-      layer.setNeedsDisplay()
+  /// Update the current frame if needed.
+  func updateFrameIfNeeded() {
+    guard let animator = animator else { return }
+    animator.shouldChangeFrame(displayLink.duration) { hasNewFrame in
+      if hasNewFrame { self.layer.setNeedsDisplay() }
     }
   }
 
-  /// Invalidate the displayLink so it releases this object.
+  /// Invalidate the displayLink so it releases its target.
   deinit {
-    displayLink.invalidate()
+    if displayLinkInitialized {
+      displayLink.invalidate()
+    }
   }
 
   /// Attaches the display link.
@@ -153,4 +179,3 @@ public class AnimatableImageView: UIImageView {
     displayLink.addToRunLoop(.mainRunLoop(), forMode: NSRunLoopCommonModes)
   }
 }
-

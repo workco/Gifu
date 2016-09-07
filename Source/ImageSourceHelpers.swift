@@ -11,11 +11,12 @@ let defaultDuration: Double = 0
 func CGImageSourceGIFFrameDuration(imageSource: CGImageSource, index: Int) -> NSTimeInterval {
   if !imageSource.isAnimatedGIF { return 0.0 }
 
-  let duration = imageSource.GIFPropertiesAtIndex(index)
-    >>- durationFromGIFProperties
-    >>- capDuration
+  guard let properties = imageSource.GIFPropertiesAtIndex(index),
+    let duration = durationFromGIFProperties(properties),
+    let cappedDuration = capDuration(duration)
+    else { return defaultDuration }
 
-  return duration ?? defaultDuration
+  return cappedDuration
 }
 
 /// Ensures that a duration is never smaller than a threshold value.
@@ -32,20 +33,19 @@ func capDuration(duration: Double) -> Double? {
 ///
 /// - returns: A frame duration.
 func durationFromGIFProperties(properties: GIFProperties) -> Double? {
-  let unclampedDelayTime = properties[String(kCGImagePropertyGIFUnclampedDelayTime)]
-  let delayTime = properties[String(kCGImagePropertyGIFDelayTime)]
+  guard let unclampedDelayTime = properties[String(kCGImagePropertyGIFUnclampedDelayTime)],
+    let delayTime = properties[String(kCGImagePropertyGIFDelayTime)]
+    else { return .None }
 
-  return duration <^> unclampedDelayTime <*> delayTime
+  return duration(unclampedDelayTime, delayTime: delayTime)
 }
 
 /// Calculates frame duration based on both clamped and unclamped times.
 ///
 /// - returns: A frame duration.
-func duration(unclampedDelayTime: Double) -> Double -> Double {
-  return {(delayTime: Double) -> Double in
-    let delayArray = [unclampedDelayTime, delayTime]
-      return delayArray.filter(isPositive).first ?? defaultDuration
-  }
+func duration(unclampedDelayTime: Double, delayTime: Double) -> Double {
+  let delayArray = [unclampedDelayTime, delayTime]
+  return delayArray.filter(isPositive).first ?? defaultDuration
 }
 
 /// Checks if a `Double` value is positive.
