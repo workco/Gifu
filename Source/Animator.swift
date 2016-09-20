@@ -39,7 +39,7 @@ class Animator {
   /// - seealso: `needsPrescaling` in AnimatableImageView.
   var needsPrescaling = true
   /// Dispatch queue used for preloading images.
-  private lazy var preloadFrameQueue = DispatchQueue(label: "co.kaishin.Gifu.preloadQueue", attributes: DispatchQueueAttributes.serial, target: nil)
+  private lazy var preloadFrameQueue: DispatchQueue = DispatchQueue(label: "co.kaishin.Gifu.preloadQueue")
   /// The current image frame to show.
   var currentFrameImage: UIImage? {
     return frame(at: currentFrameIndex)
@@ -62,7 +62,7 @@ class Animator {
     }
 
     // Compute the animation position using currentPreloadIndex and current cache count properties.
-    let animationPosition = currentPreloadIndex - animatedFrames.count
+    let animationPosition = currentFrameIndex - animatedFrames.count
     return (animationPosition < 0) ? (animationPosition + frameCount) : animationPosition
   }
 
@@ -71,8 +71,8 @@ class Animator {
   /// - parameter data: The raw GIF image data.
   /// - parameter delegate: An `Animatable` delegate.
   init(data: Data, size: CGSize, contentMode: UIViewContentMode, framePreloadCount: Int) {
-    let options: CFDictionary = [String(kCGImageSourceShouldCache): kCFBooleanFalse]
-    self.imageSource = CGImageSourceCreateWithData(data, options) ?? CGImageSourceCreateIncremental(options)
+    let options: CFDictionary = [String(kCGImageSourceShouldCache): kCFBooleanFalse] as CFDictionary
+    self.imageSource = CGImageSourceCreateWithData(data as CFData, options) ?? CGImageSourceCreateIncremental(options)
     self.size = size
     self.contentMode = contentMode
     self.preloadFrameCount = framePreloadCount

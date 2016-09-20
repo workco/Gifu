@@ -45,7 +45,7 @@ public class AnimatableImageView: UIImageView {
   }()
 
   /// Current loaded data
-  public private(set) var loadedData: NSData?
+  public private(set) var loadedData: Data?
 
   /// The size of the frame cache.
   public var framePreloadCount = 50
@@ -75,7 +75,7 @@ public class AnimatableImageView: UIImageView {
   /// - parameter imageName: The name of the GIF file. The method looks for the file in the app bundle.
   public func prepareForAnimation(withGIFNamed imageName: String) {
     guard let extensionRemoved = imageName.components(separatedBy: ".")[safe: 0],
-      let imagePath = Bundle.main.urlForResource(extensionRemoved, withExtension: "gif"),
+      let imagePath = Bundle.main.url(forResource:extensionRemoved, withExtension: "gif"),
       let data = try? Data(contentsOf: imagePath) else { return }
 
     currentLoopCount = 0
@@ -136,7 +136,7 @@ public class AnimatableImageView: UIImageView {
 
   /// Stops the animation in accordance with the loop count settings.
   func stopAnimatingIfNeeded() {
-    guard let animator = animator where animator.currentAnimationPosition == animator.frameCount - 1 else {
+    guard let animator = animator, animator.currentAnimationPosition == animator.frameCount - 1 else {
       return
     }
 
@@ -145,12 +145,12 @@ public class AnimatableImageView: UIImageView {
       currentLoopCount = 0
       stopAnimatingGIF()
 
-      NSOperationQueue.mainQueue().addOperationWithBlock { [weak self] in
+      OperationQueue.main.addOperation { [weak self] in
         guard let strongSelf = self else {
           return
         }
 
-        strongSelf.delegate?.animatableImageViewAnimationDidStop(strongSelf)
+        strongSelf.delegate?.animatableImageViewAnimationDidStop(animatableImageView: strongSelf)
       }
     }
   }
